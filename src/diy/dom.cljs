@@ -39,16 +39,21 @@
   [args]
   (loop [attr         (transient {})
          kids         (transient [])
+         muts         (transient [])
          [arg & args] args]
     (if-not (or arg args)
-      [(persistent! attr) (persistent! kids)]
-      (cond (map? arg)     (recur (reduce-kv assoc! attr arg) kids args)
-            (set? arg)     (recur (reduce #(assoc! %1 %2 true) attr arg) kids args)
-            ;;todo: allow non-keyword attrs. see hoplon IAttr type
-            (keyword? arg) (recur (assoc! attr arg (first args)) kids (rest args))
-            (seq? arg)     (recur attr (reduce conj! kids (vflatten arg)) args)
-            (vector? arg)  (recur attr (reduce conj! kids (vflatten arg)) args)
-            :else          (recur attr (conj! kids arg) args)))))
+      [(persistent! attr) (persistent! kids) (persistent! muts)]
+      (cond
+        (map? arg)     (recur (reduce-kv assoc! attr arg) kids muts args)
+        (set? arg)     (recur (reduce #(assoc! %1 %2 true) attr arg) kids muts args)
+        ;;todo: allow non-keyword attrs. see hoplon IAttr type
+        (keyword? arg) (recur (assoc! attr arg (first args)) kids muts (rest args))
+
+        (fn? arg)      (recur attr kids (conj! muts arg (first args)) (rest args))
+
+        (seq? arg)     (recur attr (reduce conj! kids (vflatten arg)) muts args)
+        (vector? arg)  (recur attr (reduce conj! kids (vflatten arg)) muts args)
+        :else          (recur attr (conj! kids arg) muts args)))))
 
 ;;alternative, less fancy arg parsing. Allows an optional attribute
 ;;map as a first argument only
@@ -87,10 +92,12 @@
   (doto el (gdom/append (clj->js kids))))
 
 (defn invoke! [el & args]
-  (let [[attr kids] (hoplon-parse-args args)]
-    (doto el
-      (add-attr! attr)
-      (add-kids! kids))))
+  (let [[attr kids muts] (hoplon-parse-args args)]
+    (add-attr! el attr)
+    (add-kids! el kids)
+    (doseq [[f args] (partition 2 muts)]
+      (apply f el (if (sequential? args) args [args])))
+    el))
 
 (extend-type js/Element
   IFn
