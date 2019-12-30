@@ -4,8 +4,7 @@
             [goog.array :as garr]
             [goog.object :as gobj]
             [goog.style :as gsty]
-            [clojure.string :as str]
-            [medley.core :as m])
+            [clojure.string :as str])
   (:require-macros [diy.dom :refer [def-elem-ctors defelem elem]]))
 
 (defn $ [selector]
