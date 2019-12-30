@@ -34,56 +34,57 @@
 
 ;;from hoplon.
 (defn hoplon-parse-args
-  "Parses a sequence of element arguments into attributes and children."
+  "Parses a sequence of element arguments and returns a vector of
+  properties, children and mutations"
   [args]
-  (loop [attr         (transient {})
+  (loop [props        (transient {})
          kids         (transient [])
          muts         (transient [])
          [arg & args] args]
     (if-not (or arg args)
-      [(persistent! attr) (persistent! kids) (persistent! muts)]
+      [(persistent! props) (persistent! kids) (persistent! muts)]
       (cond
-        (map? arg)     (recur (reduce-kv assoc! attr arg) kids muts args)
-        (set? arg)     (recur (reduce #(assoc! %1 %2 true) attr arg) kids muts args)
-        ;;todo: allow non-keyword attrs. see hoplon IAttr type
-        (keyword? arg) (recur (assoc! attr arg (first args)) kids muts (rest args))
+        (map? arg)     (recur (reduce-kv assoc! props arg) kids muts args)
+        (set? arg)     (recur (reduce #(assoc! %1 %2 true) props arg) kids muts args)
+        ;;todo: allow non-keyword propss. see hoplon IProps type
+        (keyword? arg) (recur (assoc! props arg (first args)) kids muts (rest args))
 
-        (fn? arg)      (recur attr kids (conj! muts arg (first args)) (rest args))
+        (fn? arg) (recur props kids (conj! muts arg (first args)) (rest args))
 
-        (seq? arg)     (recur attr (reduce conj! kids (vflatten arg)) muts args)
-        (vector? arg)  (recur attr (reduce conj! kids (vflatten arg)) muts args)
-        :else          (recur attr (conj! kids arg) muts args)))))
+        (seq? arg)    (recur props (reduce conj! kids (vflatten arg)) muts args)
+        (vector? arg) (recur props (reduce conj! kids (vflatten arg)) muts args)
+        :else         (recur props (conj! kids arg) muts args)))))
 
-;;alternative, less fancy arg parsing. Allows an optional attribute
+;;alternative, less fancy arg parsing. Allows an optional propibute
 ;;map as a first argument only
 #_
-(defn opt-attr-parse-args [args]
-  (let [maybe-attr (first args)
-        has-attr?  (map? maybe-attr)
-        attr       (if has-attr? maybe-attr {})
-        kids       (flatten (if has-attr? (rest args) args))]
-    [attr kids]))
+(defn opt-prop-parse-args [args]
+  (let [maybe-prop (first args)
+        has-prop?  (map? maybe-prop)
+        prop       (if has-prop? maybe-prop {})
+        kids       (flatten (if has-prop? (rest args) args))]
+    [prop kids]))
 
-(defmulti handle-attr! (fn [el k v] k) :default ::default)
+(defmulti handle-prop! (fn [el k v] k) :default ::default)
 
-(defmethod handle-attr! :width [el k v]
+(defmethod handle-prop! :width [el k v]
   (gsty/setWidth el v))
 
-(defmethod handle-attr! :height [el k v]
+(defmethod handle-prop! :height [el k v]
   (gsty/setHeight el v))
 
-(defmethod handle-attr! :class [el k v]
+(defmethod handle-prop! :class [el k v]
   (if (sequential? v)
     (class/addAll el (clj->js v))
     (class/set el v)))
 
-(defn add-attr! [el attr]
-  (when (not-empty attr)
+(defn add-props! [el props]
+  (when (not-empty props)
     (let [unhandled (reduce-kv (fn [m k v]
-                                  (if-let [f (get-method handle-attr! k)]
+                                  (if-let [f (get-method handle-prop! k)]
                                     (do (f el k v) m)
                                     (doto m (gobj/set (name k) v))))
-                               #js{} attr)]
+                               #js{} props)]
       (when-not (gobj/isEmpty unhandled)
         (gdom/setProperties el unhandled)))))
 
@@ -91,8 +92,8 @@
   (doto el (gdom/append (clj->js kids))))
 
 (defn invoke! [el & args]
-  (let [[attr kids muts] (hoplon-parse-args args)]
-    (add-attr! el attr)
+  (let [[props kids muts] (hoplon-parse-args args)]
+    (add-props! el props)
     (add-kids! el kids)
     (doseq [[f args] (partition 2 muts)]
       (apply f el (if (sequential? args) args [args])))
