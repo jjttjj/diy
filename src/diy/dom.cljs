@@ -1,6 +1,8 @@
 (ns diy.dom
   (:require [goog.dom :as gdom]
+            [goog.dom.classlist :as class]
             [goog.array :as garr]
+            [goog.object :as gobj]
             [goog.style :as gsty]
             [clojure.string :as str]
             [medley.core :as m])
@@ -48,7 +50,8 @@
             (vector? arg)  (recur attr (reduce conj! kids (vflatten arg)) args)
             :else          (recur attr (conj! kids arg) args)))))
 
-;;alternative, less fancy arg parsing. Allows an optional attribute map as a first argument only
+;;alternative, less fancy arg parsing. Allows an optional attribute
+;;map as a first argument only
 #_
 (defn opt-attr-parse-args [args]
   (let [maybe-attr (first args)
@@ -57,20 +60,28 @@
         kids       (flatten (if has-attr? (rest args) args))]
     [attr kids]))
 
-(defn add-attr! [el {:keys [width height style class] :as attr}]
-  (let [attr (cond-> attr
-               (sequential? class) (update :class (partial str/join " "))
+(defmulti handle-attr! (fn [el k v] k) :default ::default)
 
-               #_#_(map? class)        (update :class (fn [m]
-                                                    (->> m
-                                                         (keep
-                                                          (fn [[k v]]
-                                                            (when v (name k))))
-                                                         (str/join " ")))))]
-    (cond-> (doto el (gdom/setProperties (clj->js attr)))
-      style  (doto (gsty/setStyle (clj->js (:style attr))))
-      width  (doto (gsty/setWidth width))
-      height (doto (gsty/setHeight height)))))
+(defmethod handle-attr! :width [el k v]
+  (gsty/setWidth el v))
+
+(defmethod handle-attr! :height [el k v]
+  (gsty/setHeight el v))
+
+(defmethod handle-attr! :class [el k v]
+  (if (sequential? v)
+    (class/addAll el (clj->js v))
+    (class/set el v)))
+
+(defn add-attr! [el attr]
+  (when (not-empty attr)
+    (let [unhandled (reduce-kv (fn [m k v]
+                                  (if-let [f (get-method handle-attr! k)]
+                                    (do (f el k v) m)
+                                    (doto m (gobj/set (name k) v))))
+                               #js{} attr)]
+      (when-not (gobj/isEmpty unhandled)
+        (gdom/setProperties el unhandled)))))
 
 (defn add-kids! [el kids]
   (doto el (gdom/append (clj->js kids))))
