@@ -83,22 +83,6 @@ If you want to define custom handling for a property, you can extend the `diy.do
 ;;"a b c"
 ```
 
-## Mutators 
-
-In the same way you can pass a sequential key-value pair to be interpreted as a property, you can pass a function followed by either a single argument or collection of arguments. After all attributes and children are added to an element, these functions are applied with the element as the first argument followed by the remaining argument(s).
-
-```clojure
-(:require 
-  ...
-  [goog.style :as gsty]
-  ...
-  )
-
-(.-style.height (d/div gsty/setHeight 300))
-;;=> "300px"
-```
-
-
 # License
 
 Copyright © Justin Tirrell
