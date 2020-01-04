@@ -89,14 +89,16 @@
         (gdom/setProperties el unhandled)))))
 
 (defn add-kids! [el kids]
-  (doto el (gdom/append (clj->js kids))))
+  (append el kids))
+
+
 
 (defn invoke! [el & args]
   (let [[props kids muts] (hoplon-parse-args args)]
     (add-props! el props)
     (add-kids! el kids)
-    (doseq [[f args] (partition 2 muts)]
-      (apply f el (if (sequential? args) args [args])))
+    (doseq [[f arg] (partition 2 muts)]
+      (f el arg))
     el))
 
 (extend-type js/Element
