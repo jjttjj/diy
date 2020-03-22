@@ -6,11 +6,10 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns diy.tpl
+(ns diy.hoplon.tpl
   (:require [diy.hoplon :refer [do-watch]]
             [javelin.core :refer [cell cell=]])
-  (:require-macros [diy.tpl :refer [loop-tpl for-tpl if-tpl
-                                    when-tpl cond-tpl case-tpl]]))
+  (:require-macros [diy.hoplon.tpl]))
 
 (defn loop-tpl*
   "Given a cell items containing a seqable collection, constructs a cell that

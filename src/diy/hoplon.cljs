@@ -7,7 +7,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns diy.hoplon
-  (:require [diy.core :as d2]
+  (:require [diy.core :as d]
             [goog.object :as obj]))
 
 (defn cell? 
@@ -196,28 +196,39 @@
   [elem event callback]
   (when-dom elem #(.addEventListener elem (name event) callback)))
 
-(extend-protocol d2/IProp
-  Keyword)
-
-(defn kid-handler [el kids]
+(defn handle-kids [el kids]
   (doseq [x (vflatten kids)]
     (when-let [x (->node x)]
       (append-child! el x)))
   el)
 
-(defn prop-handler [el props]
+(defn handle-props [el props]
   (doseq [[k v] props]
     (cond (cell? v) (do-watch v #(do! el k %2))
           (fn? v)   (on! el k v)
           :else     (do! el k v))))
 
-(defn init! []
-  (d2/mkinvoke! prop-handler kid-handler)
-  (d2/def-elem-ctors d2/elem-fn :rename {"meta" "html-meta"
-                                         "time" "html-time"
-                                         "map"  "html-map"}))
 
+(defn init! []
+  (d/def-elem-ctors (fn [el-str]
+                      (fn [& args]
+                        ((d/invoker (.createElement js/document el-str)
+                           handle-props
+                           handle-kids)
+                         args)
+                        #_((d/specify-invoker (.createElement js/document el-str)
+                             handle-props
+                             handle-kids)
+                           args)))
+    :rename {meta html-meta
+             time html-time
+             map  html-map}
+    :exclude [html head body])
+
+  (d/extend-invoke js/Element
+    (fn [this & args]
+      ((d/invoker this handle-props handle-kids)
+       args))))
 
 (init!)
 
-;;todo: singltons
