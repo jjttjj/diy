@@ -26,7 +26,7 @@
     (if-not (or arg args)
       [props kids]
       (cond
-        (map? arg)        (recur (reduce-kv assoc! props arg) kids args)
+        (map? arg)        (recur (reduce-kv assoc props arg) kids args)
         (prop? arg)       (recur (assoc props arg (first args)) kids (rest args))
         (sequential? arg) (recur props kids (concat arg args))
         :else             (recur props (conj kids arg) args)))))
